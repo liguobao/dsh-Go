@@ -365,7 +365,7 @@ class _ActiveCard extends ConsumerWidget {
       footer: status.isBusy
           ? Padding(
               padding: const EdgeInsets.symmetric(horizontal: OverviewCard.inset, vertical: 8),
-              child: LinearProgressIndicator(semanticsLabel: status.summary),
+              child: LinkProgressCard(status: status, relay: active.kind == HostKind.relay),
             )
           : failed
           ? Padding(

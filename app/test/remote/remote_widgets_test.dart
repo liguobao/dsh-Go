@@ -175,7 +175,9 @@ void main() {
     linkStatus = const HostLinkStatus(HostLinkPhase.connecting, step: HostLinkStep.tunnel);
     await pump(tester, const RemoteScreen());
     await frames(tester, 3);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    expect(find.text(appL10n.remoteProgressSession), findsOneWidget);
+    expect(find.text(appL10n.remoteStepVerifyHostKey), findsNothing);
     expect(find.textContaining(appL10n.remoteStepTunnel), findsWidgets);
   });
 

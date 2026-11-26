@@ -220,9 +220,17 @@ void main() {
       await server.close();
     });
 
-    Future<DshClient> connect({void Function(RemoteConnectionState state)? onState}) async {
+    Future<DshClient> connect({
+      void Function(RemoteConnectionState state)? onState,
+      void Function(RemoteConnectionProgress)? onProgress,
+    }) async {
       await account.loginWithPassword(FakeRemoteServer.account, FakeRemoteServer.password);
-      return account.connectHost((await account.listHosts()).single, onState: onState, muxOptions: fastMux);
+      return account.connectHost(
+        (await account.listHosts()).single,
+        onState: onState,
+        onProgress: onProgress,
+        muxOptions: fastMux,
+      );
     }
 
     Future<String> clientId() async => (await account.currentUser())!.deviceId;
@@ -288,7 +296,15 @@ void main() {
     test('ICE failure selects Relay on the same tunnel before its only Noise handshake', () async {
       server.webrtcTransports.remove('transport.turn');
       network.outcome = FakeRtcOutcome.fail;
-      final client = await connect();
+      final progress = <RemoteConnectionProgress>[];
+      final client = await connect(onProgress: progress.add);
+      expect(progress, [
+        RemoteConnectionProgress.checkingHost,
+        RemoteConnectionProgress.direct,
+        RemoteConnectionProgress.relay,
+        RemoteConnectionProgress.securing,
+        RemoteConnectionProgress.preparing,
+      ]);
       expect(await client.listSessions(), isEmpty);
       expect(client.remoteCarrier!.state!.transport, 'relay');
       expect(fallbacks, ['directFailed']);
@@ -557,7 +573,15 @@ void main() {
         },
       ];
       network.stats = pairStats('host', '192.168.1.20', 'relay', '198.51.100.9');
-      final client = await connect();
+      final progress = <RemoteConnectionProgress>[];
+      final client = await connect(onProgress: progress.add);
+      expect(progress, [
+        RemoteConnectionProgress.checkingHost,
+        RemoteConnectionProgress.direct,
+        RemoteConnectionProgress.turn,
+        RemoteConnectionProgress.securing,
+        RemoteConnectionProgress.preparing,
+      ]);
       expect(await client.listSessions(), isEmpty);
       final selected = clientFrames().singleWhere((f) => f['type'] == 'transport.selected')['payload']! as Map;
       expect(selected['transport'], 'turn');

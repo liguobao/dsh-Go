@@ -105,7 +105,19 @@ class RelayLoginSession {
 /// Connection progress reported by the relay transport. The client
 /// reconnects by itself after drops; [failed] means it stopped and needs the
 /// person (the error says why).
-enum RelayConnectionState { connecting, handshaking, connected, reconnecting, failed, disconnected }
+enum RelayConnectionState {
+  checkingHost,
+  direct,
+  turn,
+  relay,
+  preparing,
+  connecting,
+  handshaking,
+  connected,
+  reconnecting,
+  failed,
+  disconnected,
+}
 
 typedef RelayStateCallback = void Function(RelayConnectionState state, HostLinkError? error);
 
@@ -357,10 +369,27 @@ class RelayHostLink implements HostLink, NetworkInspectableHostLink {
     _networkEpoch++;
     final opened = _client != null;
     switch (state) {
+      case RelayConnectionState.checkingHost:
+        _emit(_status.withStep(HostLinkStep.connect, detail: appL10n.remoteProgressChecking));
+      case RelayConnectionState.direct:
+      case RelayConnectionState.turn:
+      case RelayConnectionState.relay:
+        _emit(
+          _status.withStep(
+            HostLinkStep.tunnel,
+            detail: switch (state) {
+              RelayConnectionState.direct => appL10n.remoteProgressDirect,
+              RelayConnectionState.turn => appL10n.remoteProgressTurn,
+              _ => appL10n.remoteProgressRelay,
+            },
+          ),
+        );
+      case RelayConnectionState.preparing:
+        _emit(_status.withStep(HostLinkStep.login, detail: appL10n.remoteProgressPreparing));
       case RelayConnectionState.connecting:
         if (!opened) _emit(_status.withStep(HostLinkStep.tunnel));
       case RelayConnectionState.handshaking:
-        if (!opened) _emit(_status.withStep(HostLinkStep.login));
+        _emit(_status.withStep(HostLinkStep.login, detail: appL10n.remoteProgressSecuring));
       case RelayConnectionState.connected:
         if (opened) _emit(_connected(_client!));
       case RelayConnectionState.reconnecting:

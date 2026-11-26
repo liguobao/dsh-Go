@@ -10,8 +10,9 @@ import '../theme/theme.dart';
 /// 建立隧道 → 登录, each done / running / failed / waiting, with the error
 /// (and its technical detail, copyable) under the step that failed.
 class LinkProgressCard extends StatelessWidget {
-  const LinkProgressCard({super.key, required this.status, this.onRetry});
+  const LinkProgressCard({super.key, required this.status, this.onRetry, this.relay = false});
 
+  final bool relay;
   final HostLinkStatus status;
   final VoidCallback? onRetry;
 
@@ -30,9 +31,10 @@ class LinkProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final step in HostLinkStep.values)
+          for (final step
+              in relay ? const [HostLinkStep.connect, HostLinkStep.tunnel, HostLinkStep.login] : HostLinkStep.values)
             _StepRow(
-              label: step.label,
+              label: relay && step == HostLinkStep.login ? l10n.remoteProgressSession : step.label,
               state: done || status.completed.contains(step)
                   ? _StepState.done
                   : step == current

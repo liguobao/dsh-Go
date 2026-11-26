@@ -277,6 +277,14 @@ class DshRemoteRelayBackend implements RelayBackend, RelayNetworkBackend, RelayP
       muxOptions: _muxOptions,
       timeout: const Duration(seconds: 45),
       confirmNewHost: (h) async => approves(h.id, h.fingerprint),
+      onProgress: (progress) => onState?.call(switch (progress) {
+        remote.RemoteConnectionProgress.checkingHost => RelayConnectionState.checkingHost,
+        remote.RemoteConnectionProgress.direct => RelayConnectionState.direct,
+        remote.RemoteConnectionProgress.turn => RelayConnectionState.turn,
+        remote.RemoteConnectionProgress.relay => RelayConnectionState.relay,
+        remote.RemoteConnectionProgress.securing => RelayConnectionState.handshaking,
+        remote.RemoteConnectionProgress.preparing => RelayConnectionState.preparing,
+      }, null),
       onState: onState == null
           ? null
           : (s) => onState(_state(s.phase), s.failure == null ? null : describe(s.failure!, host.name)),

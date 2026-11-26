@@ -19607,6 +19607,27 @@ class L10nEn extends L10n {
   String get searchKwRemoteCompactHistory => 'compact slim lite history tools transfer bandwidth remote';
 
   @override
+  String get remoteProgressChecking => 'Checking host availability and identity';
+
+  @override
+  String get remoteProgressDirect => 'Trying LAN / P2P direct connection';
+
+  @override
+  String get remoteProgressTurn => 'Trying TURN';
+
+  @override
+  String get remoteProgressRelay => 'Connecting through server relay';
+
+  @override
+  String get remoteProgressSecuring => 'Establishing end-to-end encryption';
+
+  @override
+  String get remoteProgressPreparing => 'Checking host capabilities and preparing sessions';
+
+  @override
+  String get remoteProgressSession => 'Secure connection and sessions';
+
+  @override
   String get remotePairEntry => 'Pair a computer by scanning';
 
   @override

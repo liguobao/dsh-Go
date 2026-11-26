@@ -18587,6 +18587,27 @@ class L10nZh extends L10n {
   String get searchKwRemoteCompactHistory => '精简 简洁 历史 工具 传输 流量 远程 compact slim lite';
 
   @override
+  String get remoteProgressChecking => '检查主机状态与身份';
+
+  @override
+  String get remoteProgressDirect => '尝试局域网 / P2P 直连';
+
+  @override
+  String get remoteProgressTurn => '尝试 TURN 中转';
+
+  @override
+  String get remoteProgressRelay => '连接服务器中继';
+
+  @override
+  String get remoteProgressSecuring => '建立端到端加密连接';
+
+  @override
+  String get remoteProgressPreparing => '确认主机能力并准备会话';
+
+  @override
+  String get remoteProgressSession => '安全连接与会话';
+
+  @override
   String get remotePairEntry => '扫码配对电脑';
 
   @override

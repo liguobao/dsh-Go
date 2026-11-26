@@ -51,6 +51,23 @@ void main() {
     for (final raw in server.clientControlFrames) (jsonDecode(raw) as Map<String, Object?>)['type']! as String,
   ];
 
+  test('reports observed relay setup stages before readiness', () async {
+    await account.loginWithPassword(FakeRemoteServer.account, FakeRemoteServer.password);
+    final progress = <RemoteConnectionProgress>[];
+    final client = await account.connectHost(
+      (await account.listHosts()).single,
+      onProgress: progress.add,
+      muxOptions: fastMux,
+    );
+    expect(progress, [
+      RemoteConnectionProgress.checkingHost,
+      RemoteConnectionProgress.relay,
+      RemoteConnectionProgress.securing,
+      RemoteConnectionProgress.preparing,
+    ]);
+    expect(client.remoteCarrier!.state!.isConnected, isTrue);
+  });
+
   test('attaches to the assigned node, then ciphertext and heartbeats use only its socket', () async {
     final client = await connect();
     expect(await client.listSessions(), isEmpty);

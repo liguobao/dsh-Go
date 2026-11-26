@@ -1164,6 +1164,7 @@ class RemoteAccount {
   Future<DshClient> connectHost(
     RemoteHost host, {
     void Function(RemoteConnectionState state)? onState,
+    void Function(RemoteConnectionProgress progress)? onProgress,
     HostTrustPrompt? confirmNewHost,
     MuxOptions muxOptions = const MuxOptions(),
     Duration timeout = const Duration(seconds: 30),
@@ -1179,7 +1180,8 @@ class RemoteAccount {
     late final RemoteTunnelCarrier carrier;
     carrier = RemoteTunnelCarrier(
       hostId: host.id,
-      open: (last) => _openHostSession(host, last, confirmNewHost, historyMode, () => carrier.isClosed, carrier.states),
+      open: (last) =>
+          _openHostSession(host, last, confirmNewHost, historyMode, () => carrier.isClosed, carrier.states, onProgress),
       healthInterval: healthInterval,
       healthTimeout: healthTimeout,
       tracer: tracer,
@@ -1229,9 +1231,10 @@ class RemoteAccount {
     _HistoryMode historyMode,
     bool Function() isCancelled,
     Stream<RemoteConnectionState> ownerStates,
+    void Function(RemoteConnectionProgress)? onProgress,
   ) async {
     try {
-      return await _openHostSessionOnce(host, previous, confirm, historyMode, isCancelled, ownerStates);
+      return await _openHostSessionOnce(host, previous, confirm, historyMode, isCancelled, ownerStates, onProgress);
     } on RemoteConnectException {
       rethrow;
     } on Object catch (error) {
@@ -1246,6 +1249,7 @@ class RemoteAccount {
     _HistoryMode historyMode,
     bool Function() isCancelled,
     Stream<RemoteConnectionState> ownerStates,
+    void Function(RemoteConnectionProgress)? onProgress,
   ) async {
     final identity = _identity;
     if (identity == null || _credentials == null) {
@@ -1253,6 +1257,7 @@ class RemoteAccount {
         RemoteFailure('ACCOUNT_AUTH_REQUIRED', 'Sign in to the remote Server first.', retryable: false),
       );
     }
+    onProgress?.call(RemoteConnectionProgress.checkingHost);
     final staleToken = previous?.code == 'TOKEN_EXPIRED' || previous?.code == 'AUTH_INVALID';
     var token = await accessToken(forceRefresh: staleToken);
 
@@ -1281,11 +1286,11 @@ class RemoteAccount {
     // (refresh once when the token is refused).
     _TransportSelection selection;
     try {
-      selection = await _connectTransport(token, host.id, isCancelled);
+      selection = await _connectTransport(token, host.id, isCancelled, onProgress);
     } on RemoteTransportException catch (error) {
       if (error.code != 'AUTH_INVALID' && error.code != 'TOKEN_EXPIRED') rethrow;
       token = await accessToken(forceRefresh: true);
-      selection = await _connectTransport(token, host.id, isCancelled);
+      selection = await _connectTransport(token, host.id, isCancelled, onProgress);
     }
     final transport = selection.transport;
     if (isCancelled()) {
@@ -1294,6 +1299,7 @@ class RemoteAccount {
     }
 
     // 3. Noise IK (client = initiator) against the pinned key.
+    onProgress?.call(RemoteConnectionProgress.securing);
     final channel = await SecureChannel.establish(
       transport: transport,
       clientDeviceId: identity.deviceId,
@@ -1331,6 +1337,7 @@ class RemoteAccount {
       if (state.phase == RemoteConnectionPhase.closed) unawaited(rpc.close());
     }, onDone: () => unawaited(rpc.close()));
     // 4. Capability probe: the first RPC must be harness.transport.describe.
+    onProgress?.call(RemoteConnectionProgress.preparing);
     var probingCapabilities = true;
     try {
       // Recovery may keep this Noise session only after the RPC receiver exists.
@@ -1456,9 +1463,15 @@ class RemoteAccount {
   /// tunnel). An unopened RTC failure can select Relay on that same tunnel.
   /// Noise starts only after selection. Recent failures skip the bad path
   /// for 45 seconds; a changed native network hint clears that cooldown.
-  Future<_TransportSelection> _connectTransport(String token, String hostId, bool Function() isCancelled) async {
+  Future<_TransportSelection> _connectTransport(
+    String token,
+    String hostId,
+    bool Function() isCancelled,
+    void Function(RemoteConnectionProgress)? onProgress,
+  ) async {
     final connector = peerConnector;
     if (connector == null) {
+      onProgress?.call(RemoteConnectionProgress.relay);
       return _TransportSelection(
         await _connectRelay(token, hostId, isCancelled: isCancelled),
         RemoteNetworkFallbackReason.webrtcUnavailable,
@@ -1490,10 +1503,12 @@ class RemoteAccount {
     Future<List<RemoteIceServer>> fetchIce(String id) => api.turnCredentials(token, id);
 
     if (!wantDirect && !wantTurn) {
+      onProgress?.call(RemoteConnectionProgress.relay);
       return _TransportSelection(await _connectRelay(token, hostId, isCancelled: isCancelled), reason);
     }
     var control = await _connectRelay(token, hostId, direct: true, preferred: preferred, isCancelled: isCancelled);
     if (control.directTransports.isEmpty) {
+      onProgress?.call(RemoteConnectionProgress.relay);
       return _TransportSelection(control, RemoteNetworkFallbackReason.webrtcUnavailable);
     }
     try {
@@ -1502,6 +1517,7 @@ class RemoteAccount {
       var directFailed = false;
       var dataChannelOpened = false;
       if (wantDirect) {
+        onProgress?.call(RemoteConnectionProgress.direct);
         try {
           final rtc = await WebRtcTransport.negotiate(
             control: control,
@@ -1525,6 +1541,7 @@ class RemoteAccount {
         throw const RemoteTransportException('CLIENT_CLOSED', 'The connection owner closed.', retryable: false);
       }
       if (wantTurn) {
+        onProgress?.call(RemoteConnectionProgress.turn);
         if (directFailed) {
           await control.close();
           control = await _connectRelay(
@@ -1534,7 +1551,10 @@ class RemoteAccount {
             preferred: const [RemoteTransportMode.turn, RemoteTransportMode.relay],
             isCancelled: isCancelled,
           );
-          if (control.directTransports.isEmpty) return _TransportSelection(control, reason);
+          if (control.directTransports.isEmpty) {
+            onProgress?.call(RemoteConnectionProgress.relay);
+            return _TransportSelection(control, reason);
+          }
         }
         try {
           final rtc = await WebRtcTransport.negotiate(
@@ -1563,6 +1583,7 @@ class RemoteAccount {
       if (isCancelled()) {
         throw const RemoteTransportException('CLIENT_CLOSED', 'The connection owner closed.', retryable: false);
       }
+      onProgress?.call(RemoteConnectionProgress.relay);
       if (dataChannelOpened && control.canUseRelay) {
         // The Host already selected RTC and drops this tunnel when its peer closes.
         await control.close();

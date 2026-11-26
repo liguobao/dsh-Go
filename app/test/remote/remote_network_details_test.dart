@@ -8,6 +8,7 @@ import 'package:dsh_app/runtime/runtime_state.dart';
 import 'package:dsh_app/state/connection_state.dart';
 import 'package:dsh_app/state/hosts_state.dart';
 import 'package:dsh_app/ui/remote/network_details_sheet.dart';
+import 'package:dsh_app/ui/remote/connection_progress.dart';
 import 'package:dsh_app/ui/remote/remote_screen.dart';
 import 'package:dsh_app/ui/settings/settings_widgets.dart';
 import 'package:dsh_client/dsh_client.dart';
@@ -112,6 +113,28 @@ void main() {
     );
     await frames(tester);
   }
+
+  testWidgets('landing progress follows stages and disappears only when ready', (tester) async {
+    final link = _InspectableLink(const HostLinkStatus(HostLinkPhase.connecting, step: HostLinkStep.connect));
+    addTearDown(link.changes.close);
+    await tester.pumpWidget(
+      goldenApp(
+        home: const Scaffold(body: RemoteConnectionProgress()),
+        brightness: Brightness.light,
+        overrides: [hostLinkProvider.overrideWith((ref, host) => link)],
+      ),
+    );
+    await frames(tester);
+    expect(find.text(appL10n.remoteStepConnect), findsOneWidget);
+    expect(find.text(appL10n.remoteStepVerifyHostKey), findsNothing);
+    link.emit(HostLinkStatus(HostLinkPhase.connecting, step: HostLinkStep.tunnel, detail: appL10n.remoteProgressTurn));
+    await frames(tester);
+    expect(find.text(appL10n.remoteProgressTurn), findsOneWidget);
+    link.emit(const HostLinkStatus(HostLinkPhase.connected));
+    await frames(tester);
+    expect(find.text(appL10n.remoteProgressTurn), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
 
   testWidgets('automatic routing has no direct toggle or stale search setting', (tester) async {
     await pump(tester, _InspectableLink(HostLinkStatus.idle), page: true);

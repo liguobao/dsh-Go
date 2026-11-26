@@ -79,3 +79,6 @@ class RemoteConnectionState {
   String toString() =>
       'RemoteConnectionState(${phase.name}${transport == null ? '' : ' via $transport'}${failure == null ? '' : ', $failure'})';
 }
+
+/// Observed setup stages; these do not imply a percentage or readiness.
+enum RemoteConnectionProgress { checkingHost, direct, turn, relay, securing, preparing }

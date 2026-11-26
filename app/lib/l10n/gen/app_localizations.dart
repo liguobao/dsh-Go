@@ -34134,6 +34134,48 @@ abstract class L10n {
   /// **'精简 简洁 历史 工具 传输 流量 远程 compact slim lite'**
   String get searchKwRemoteCompactHistory;
 
+  /// No description provided for @remoteProgressChecking.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查主机状态与身份'**
+  String get remoteProgressChecking;
+
+  /// No description provided for @remoteProgressDirect.
+  ///
+  /// In zh, this message translates to:
+  /// **'尝试局域网 / P2P 直连'**
+  String get remoteProgressDirect;
+
+  /// No description provided for @remoteProgressTurn.
+  ///
+  /// In zh, this message translates to:
+  /// **'尝试 TURN 中转'**
+  String get remoteProgressTurn;
+
+  /// No description provided for @remoteProgressRelay.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接服务器中继'**
+  String get remoteProgressRelay;
+
+  /// No description provided for @remoteProgressSecuring.
+  ///
+  /// In zh, this message translates to:
+  /// **'建立端到端加密连接'**
+  String get remoteProgressSecuring;
+
+  /// No description provided for @remoteProgressPreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认主机能力并准备会话'**
+  String get remoteProgressPreparing;
+
+  /// No description provided for @remoteProgressSession.
+  ///
+  /// In zh, this message translates to:
+  /// **'安全连接与会话'**
+  String get remoteProgressSession;
+
   /// No description provided for @remotePairEntry.
   ///
   /// In zh, this message translates to:
